@@ -1,0 +1,34 @@
+#! /bin/bash
+
+while true
+do
+  sudo aws s3 sync s3://kfcmaibach .
+  declare -a dirs
+  i=1
+  for d in */
+  do
+      dirs[i++]="${d%/}"
+  done
+  echo "There are ${#dirs[@]} dirs in the current path"
+  for((i=1;i<=${#dirs[@]};i++))
+  do
+      cd "${dirs[i]}"
+      #sudo rm ${dirs[i]}.pdf
+      shopt -s nullglob
+      array=(*)
+      echo "directory ${array[i]} will be executed"
+      if (( ${#array[@]} >= 2 )); then
+      sudo gs -dNOPAUSE -sDEVICE=pdfwrite -sOUTPUTFILE=${dirs[i]}.pdf -dBATCH ${array[0]} ${array[1]}
+      mkdir merged
+      sudo mv ${dirs[i]}.pdf merged/
+      sudo rm ${array[0]}
+      sudo rm ${array[1]}
+      sudo aws s3 rm s3://kfcmaibach/${dirs[i]}/${array[0]} --exclude "kfcmaibach/${dirs[i]}/${dirs[i]}.pdf"
+      sudo aws s3 rm s3://kfcmaibach/${dirs[i]}/${array[1]} --exclude "kfcmaibach/${dirs[i]}/${dirs[i]}.pdf"
+      fi
+      cd ..
+      echo $i "${dirs[i]}"
+  done
+  sudo aws s3 sync . s3://kfcmaibach
+  sleep 30
+done
